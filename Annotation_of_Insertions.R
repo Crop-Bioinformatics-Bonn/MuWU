@@ -92,7 +92,7 @@ Mu_single_TranscriptIds <- Mu_single_TranscriptIds[grep("contig", Mu_single_Tran
 #gene length via gff3 file
 #transcript length can be found in the gtf file
 short_GFF3 <- GFF3[, c("V3", "V4", "V5", "V9")] 
-short_GFF3 <- short_GFF3[,-1]
+#short_GFF3 <- short_GFF3[,-1]
 
 #only keep rows with "gene" in column V3
 short_GFF3_genes <- short_GFF3[grep("gene", short_GFF3$V3), ]
