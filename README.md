@@ -36,7 +36,7 @@ Alternatively install Singularity based on these instructions: https://singulari
   
 ### Step 2 - set up the container to run the workflow  ####
 
-Download the MuWU-example.sif file, hosted here:    
+**Download the MuWU-example.sif file, hosted here:**  https://uni-bonn.sciebo.de/s/LsmuNDuEeA0sUer  
   
 Create a sandbox from the .sif file:  
 This can take a while (on Intel(R) Xeon(R) CPU E5-2690 v4@ 2.60GHz roughly 30 min!), since the sandbox will be over 20Gb in size.  
