@@ -13,7 +13,9 @@ There are 2 ways of using MuWU:
 The main output files are:  
 
 1. MultiQC HTML output (open in browser):  
-`/MuWU/multiqc/multiqc.html`  
+```
+/MuWU/multiqc/multiqc.html
+```  
   
 2. Gene & Transcript level final output tables:  
 ```
