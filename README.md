@@ -116,6 +116,9 @@ Then specifiy overall threads and start MuWU via:
 `snakemake --cores xx --use-conda`  
 <br>  
 
+### Only have a gff3 file?
+Exchange the R script Annotation_of_Insertions.R in the Snakefile rule *Assign_Gene_and_Transcript_IDs:* for the just_GFF3_Annotation_of_Insertions.R script also provided.  
+  
 ### The workflow in the current release:
 `snakemake --rulegraph | dot -Tsvg > rulegraph.svg`
 ![Alt text](./rulegraph.svg)

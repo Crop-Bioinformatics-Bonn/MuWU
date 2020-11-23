@@ -25,10 +25,13 @@ options(warn=-1)
 MuSingle <- read.csv("MuSeq_table_final/SLI-MuSeq_FGS.csv", header=T)
 MuSingle$Insertionsites <- paste(MuSingle$Chr, MuSingle$Start, MuSingle$End)
 
+
 ## Read GFF File
 setwd("FGS/")
 MY_gff3 <- list.files(getwd(), pattern="\\.gff3$") 
 GFF3 <- read.delim(MY_gff3, header=FALSE, comment.char="#")
+
+GFF3 <- GFF3[GFF3$V3=="gene",]
 
 ## Calculate Ranges for Mu insertion sites and genes in the GFF
 Ranges<-GRanges(seqnames=MuSingle$Chr,ranges=IRanges(start=MuSingle$Start,end=MuSingle$End))
@@ -43,8 +46,8 @@ Insertions_GFF <- na.omit(Insertions_GFF)
 
 Insertions_GFF$gene<-paste(Insertions_GFF$seqnames,Insertions_GFF$start_position,Insertions_GFF$end_position)
 Insertions_GFF$Insertionsites<-paste(Insertions_GFF$seqnames,Insertions_GFF$start,Insertions_GFF$end)
-Insertions_GFF$gene<-gsub("chr","",Insertions_GFF$gene)
-Insertions_GFF$Insertionsites<-gsub("chr","",Insertions_GFF$Insertionsites)
+#Insertions_GFF$gene<-gsub("chr","",Insertions_GFF$gene)
+#Insertions_GFF$Insertionsites<-gsub("chr","",Insertions_GFF$Insertionsites)
 GFF3$gene<-paste(GFF3$V1,GFF3$V4,GFF3$V5)
 Insertions_GFFinsidemerged<-merge(Insertions_GFF,GFF3,by="gene")
 Insertions_GFFinside_geneIDs<-Insertions_GFFinsidemerged[,c(1,16,25)]
@@ -52,90 +55,93 @@ Insertions_GFFinside_geneIDs<-Insertions_GFFinsidemerged[,c(1,16,25)]
 Mu_single_Ids<-merge(MuSingle,Insertions_GFFinside_geneIDs,by="Insertionsites")
 Mu_single_Ids<-unique(Mu_single_Ids[,c(2,3,4,5,6,7,9)])
 colnames(Mu_single_Ids)<-c("Chromosome","Start","End","Sample","StartReads","EndReads","Ids")
-Mu_single_Ids<-Mu_single_Ids[grep("ID",Mu_single_Ids$Ids,invert = F),]
-Mu_single_Ids<-Mu_single_Ids[grep("ID=gene:",Mu_single_Ids$Ids,invert = T),]
-Mu_single_Ids<-Mu_single_Ids[grep("chromosome:",Mu_single_Ids$Ids,invert = T),]
-Mu_single_Ids<-unique(Mu_single_Ids)
-Mu_single_Ids$Ids<-gsub(";Parent=.*","",Mu_single_Ids$Ids)
-Mu_single_Ids$Ids<-gsub("ID=","",Mu_single_Ids$Ids)
 
-#create good gene id column
-GeneID<-gsub("_T0.*","",Mu_single_Ids$Ids)
-GeneID<-gsub("_T1.*","",GeneID)
-GeneID<-gsub("_T2.*","",GeneID)
-GeneID<-gsub("CDS:","",GeneID)
-GeneID<-gsub("transcript:","",GeneID)
-GeneID<-gsub("_P.*","",GeneID)
-Mu_single_Ids$GeneID<-GeneID
-Mu_single_Ids<-unique(Mu_single_Ids)
-
-#create good transcript id column
-TranscriptID <- gsub("CDS:","", Mu_single_Ids$Ids)
-TranscriptID <- gsub("transcript:","", Mu_single_Ids$Ids)
-Mu_single_Ids$TranscriptID<-TranscriptID
-Mu_single_Ids<-unique(Mu_single_Ids)
+Mu_single_Ids$Ids<-gsub("ID=gene:","",Mu_single_Ids$Ids)
+Mu_single_Ids$Ids<-gsub(";.*","",Mu_single_Ids$Ids)
 
 
-#create two tables - one with gene IDs and one with TranscriptIds
-#with unique we can get of the multiple repeating lines in the gene id dataframe
-#here we remove all the lines with unnecessary content that are essentially doubles
-#also remove all CDS lines from the Mu_single_TranscriptIds file - these are unnecessary doubles of the transcripts we don't need
-Mu_single_GeneIds <- unique(Mu_single_Ids[, c("Chromosome", "Start", "End", "Sample", "StartReads", "EndReads", "GeneID")])
-Mu_single_GeneIds <- Mu_single_GeneIds[grep("contig", Mu_single_GeneIds$GeneID, invert = TRUE), ]
+colnames(Mu_single_Ids)<-c("Chromosome","Start","End","Sample","StartReads","EndReads","GeneID")
 
-Mu_single_TranscriptIds <- Mu_single_Ids[, c("Chromosome", "Start", "End", "Sample", "StartReads", "EndReads", "TranscriptID")]
-Mu_single_TranscriptIds <- Mu_single_TranscriptIds[grep("CDS", Mu_single_TranscriptIds$TranscriptID, invert = TRUE), ]
-Mu_single_TranscriptIds <- Mu_single_TranscriptIds[grep("contig", Mu_single_TranscriptIds$TranscriptID, invert = TRUE), ]
-
-##
 #add gene or transcript length to the dataframes
 #gene length via gff3 file
 #transcript length can be found in the gtf file
 short_GFF3 <- GFF3[, c("V3", "V4", "V5", "V9")] 
-#short_GFF3 <- short_GFF3[,-1]
-
-#only keep rows with "gene" in column V3
-short_GFF3_genes <- short_GFF3[grep("gene", short_GFF3$V3), ]
+short_GFF3 <- short_GFF3[-1, ]
 
 #delete everything but the gene name from column V9
-short_GFF3_genes$V9 <- gsub("ID=gene:", "", short_GFF3_genes$V9)
-short_GFF3_genes$V9 <- gsub("\\;.*", "", short_GFF3_genes$V9)
+short_GFF3$V9 <- gsub("ID=gene:","", short_GFF3$V9)
+short_GFF3$V9 <- gsub(";.*","", short_GFF3$V9)
+
 
 #compute gene length
-Gene_length <- (short_GFF3_genes$V5 - short_GFF3_genes$V4 + 1)
-short_GFF3_genes$Gene_length <- Gene_length
+Gene_length <- (short_GFF3$V5 - short_GFF3$V4 + 1)
+short_GFF3$Gene_length <- Gene_length
 
 #write dataframe just with gene id and gene length and then merge it into the the Mu_single_gene_id dataframe
-short_GFF3_genes <- short_GFF3_genes[, c("V9", "Gene_length")]
+short_GFF3_genes <- short_GFF3[, c("V9", "Gene_length")]
 names(short_GFF3_genes) <- c("GeneID", "Gene_length")
-Mu_single_GeneIds_gene_lengths <- merge(Mu_single_GeneIds, short_GFF3_genes, by="GeneID", all.x=TRUE)
-
-###
-#transcript length
-#read in gtf file
-MY_GTF <- list.files(getwd(), pattern="\\.gtf$") 
-GTF <- read.delim(MY_GTF, header=FALSE, comment.char="#")
+Mu_single_GeneIds_gene_lengths <- merge(Mu_single_Ids, short_GFF3_genes, by="GeneID", all.x=TRUE)
 
 
-short_GTF <- GTF[, c("V3", "V4", "V5", "V9")] 
+#######
+#transcript level
 
-#only keep rows with "transcript" in column V3
-short_GTF_transcripts <- short_GTF[grep("transcript", short_GTF$V3), ]
+GFF3 <- read.delim(MY_gff3, header=FALSE, comment.char="#")
 
-#delete everything but the transcript name from column V9
-short_GTF_transcripts$V9 <- gsub("gene_id.*transcript_id ", "", short_GTF_transcripts$V9)
-short_GTF_transcripts$V9 <- gsub("\\;.*", "", short_GTF_transcripts$V9)
+GFF3 <- GFF3[GFF3$V3=="mRNA",]
 
-#compute Transcript length
-Transcript_length <- (short_GTF_transcripts$V5 - short_GTF_transcripts$V4 + 1)
-short_GTF_transcripts$Transcript_length <- Transcript_length
+## Calculate Ranges for Mu insertion sites and genes in the GFF
+Ranges<-GRanges(seqnames=MuSingle$Chr,ranges=IRanges(start=MuSingle$Start,end=MuSingle$End))
+GFF<-GRanges(seqnames = GFF3$V1,ranges=IRanges(start=GFF3$V4,end=GFF3$V5))
+
+## Indentification of Insertions that are in genes in the GFF ##
+annotatedPeak<-annotatePeakInBatch(Ranges, AnnotationData=GFF,output="inside")
+Insertions_GFF <- as.data.frame(annotatedPeak)
+Insertions_GFF <- na.omit(Insertions_GFF)
+
+## add IDs to table with identified Mu insertion sites and write csv file 
+
+Insertions_GFF$gene<-paste(Insertions_GFF$seqnames,Insertions_GFF$start_position,Insertions_GFF$end_position)
+Insertions_GFF$Insertionsites<-paste(Insertions_GFF$seqnames,Insertions_GFF$start,Insertions_GFF$end)
+GFF3$gene<-paste(GFF3$V1,GFF3$V4,GFF3$V5)
+Insertions_GFFinsidemerged<-merge(Insertions_GFF,GFF3,by="gene")
+Insertions_GFFinside_geneIDs<-Insertions_GFFinsidemerged[,c(1,16,25)]
+
+Mu_single_Ids<-merge(MuSingle,Insertions_GFFinside_geneIDs,by="Insertionsites")
+Mu_single_Ids<-unique(Mu_single_Ids[,c(2,3,4,5,6,7,9)])
+colnames(Mu_single_Ids)<-c("Chromosome","Start","End","Sample","StartReads","EndReads","Ids")
+
+
+Mu_single_Ids$Ids<-gsub("ID=transcript:","",Mu_single_Ids$Ids)
+Mu_single_Ids$Ids<-gsub(";.*","",Mu_single_Ids$Ids)
+
+
+colnames(Mu_single_Ids)<-c("Chromosome","Start","End","Sample","StartReads","EndReads","TranscriptID")
+
+#add gene or transcript length to the dataframes
+#gene length via gff3 file
+short_GFF3 <- GFF3[, c("V3", "V4", "V5", "V9")] 
+short_GFF3 <- short_GFF3[-1, ]
+
+#delete everything but the gene name from column V9
+short_GFF3$V9 <- gsub("ID=transcript:","", short_GFF3$V9)
+short_GFF3$V9 <- gsub(";.*","", short_GFF3$V9)
+
+
+#compute transcript length
+Transcript_length <- (short_GFF3$V5 - short_GFF3$V4 + 1)
+short_GFF3$Transcript_length <- Transcript_length
+
 
 #write dataframe just with gene id and gene length and then merge it into the the Mu_single_gene_id dataframe
-short_GTF_transcripts <- short_GTF_transcripts[, c("V9", "Transcript_length")]
-names(short_GTF_transcripts) <- c("TranscriptID", "Transcript_length")
-Mu_single_TranscriptIds_transcript_lengths <- merge(Mu_single_TranscriptIds, short_GTF_transcripts, by="TranscriptID", all.x=TRUE)
+short_GFF3_transcripts <- short_GFF3[, c("V9", "Transcript_length")]
+names(short_GFF3_transcripts) <- c("TranscriptID", "Transcript_length")
+Mu_single_TranscriptIds_transcript_lengths <- merge(Mu_single_Ids, short_GFF3_transcripts, by="TranscriptID", all.x=TRUE)
 
-####################
+
+##########################################
+
+
 #add stock information
 setwd("../stock_matrix")
 MY_STOCK <- list.files(getwd(), pattern="\\.xlsx$")
@@ -162,6 +168,7 @@ test <- merge(just_row, just_col, by=c("GeneID", "Chromosome",  "Start",  "End")
 x = paste0('"', test$Sample.x, '"')
 y = paste0('"', test$Sample.y, '"')
 
+#install.packages("reshape2")
 require(reshape2)
 df <- melt(data.frame(x, y))
 colnames(df) <- c("Row", "Column")
@@ -195,6 +202,8 @@ Mu_single_GeneIds_gene_lengths_and_stock <- Mu_single_GeneIds_gene_lengths_and_s
                                                                                            Mu_single_GeneIds_gene_lengths_and_stock[,2],
                                                                                            Mu_single_GeneIds_gene_lengths_and_stock[,3]),]
 
+
+###########################################
 
 #lastly add stock information to transcript level file
 #for this we need a set of the complete geneId table but with only unique Sample, Start, End entries
